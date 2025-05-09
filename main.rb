@@ -3,7 +3,7 @@
 
 if RUBY_PLATFORM == "arm64-darwin24"
   ENV['DYLD_LIBRARY_PATH'] = '/opt/homebrew/lib' # Assumes it is installed with homebrew
-elsif RUBY_PLATFORM == "" # Check windows plateform
+elsif RUBY_PLATFORM == "" # Check windows platform
   # Load windows raylib path
 end
 
@@ -12,8 +12,10 @@ require 'raylib'
 Raylib.ffi_lib "#{ENV['DYLD_LIBRARY_PATH']}/libraylib.dylib"
 Raylib.setup_raylib_symbols
 
+Dir.mkdir('frames') unless Dir.exist?('frames')
+
 class Particle
-  def initialize(window_width, window_height)
+  def initialize(window_width, window_height, particle_color)
     @random = Random.new
     @position = Raylib::Vector2.create(@random.rand(window_width), @random.rand(window_height))
     @velocity = Raylib::Vector2.create(0.0, 0.0)
@@ -21,6 +23,7 @@ class Particle
     @window_height = window_height
     @acceleration_strength = 300.0
     @max_speed = 300.0
+    @particle_color = particle_color
   end
 
   def update(mouse_position, delta_time)
@@ -55,7 +58,7 @@ class Particle
 
   def render(mouse_position, delta_time)
     update mouse_position, delta_time
-    Raylib.DrawPixel(@position.x.to_i, @position.y.to_i, Raylib::WHITE)
+    Raylib.DrawPixel(@position.x.to_i, @position.y.to_i, @particle_color)
   end
 end
 
@@ -65,47 +68,82 @@ window_height = 600
 background_color = Raylib::BLACK
 particle_color = Raylib::WHITE
 
-file = File.read('ps.conf')
-while line = file.gets
-  split = line.split('=', 2)
+amount = 20_000
 
-  case split[0].strip!
-  when 'background'
-    case split[1].strip!
-    when 'white'
-      background_color = Raylib::WHITE
-    when 'black'
-      background_color = Raylib::BLACK
-    when 'green'
-      background_color = Raylib::GREEN
-    when 'red' 
-      background_color = Raylib::RED
-    when 'blue'
-      background_color = Raylib::BLUE
+file = File.new('ps.conf', 'r')
+if file
+  while (line = file.gets)
+    parts = line.split('=')
+    key = parts[0].strip
+
+    case key
+    when 'background_color'
+      background_color = Raylib.const_get(parts[1].strip!.upcase)
+    when 'particle_color'
+      particle_color = Raylib.const_get(parts[1].strip!.upcase)
+    when 'particle_amount'
+      amount = parts[1].strip.to_i
+    when 'window_width'
+      window_width = parts[1].strip.to_i
+    when 'window_height'
+      window_height = parts[1].strip.to_i
     end
   end
 end
 
-def init(amount, window_width, window_height)
+def init(amount, window_width, window_height, particle_color)
   particles = []
-  amount.times { particles.append(Particle.new(window_width, window_height)) }
+  amount.times { particles.append(Particle.new(window_width, window_height, particle_color)) }
   particles
 end
 
-amount = 20_000
-particles = init(amount, window_width, window_height)
+particles = init(amount, window_width, window_height, particle_color)
 
 Raylib.InitWindow(window_width, window_height, 'Particle Simulation')
 
-until Raylib.WindowShouldClose
-  Raylib.BeginDrawing
-  Raylib.ClearBackground(Raylib::BLACK)
+recording = false
+frame_count = 0
+render_texture = nil
 
+until Raylib.WindowShouldClose
+  if Raylib.IsKeyPressed(Raylib::KEY_SPACE)
+    recording = !recording
+    if recording && render_texture.nil?
+      render_texture = Raylib.LoadRenderTexture(window_width, window_height)
+    end
+  end
+
+  if recording
+    Raylib.BeginTextureMode(render_texture)
+  end
+
+  Raylib.BeginDrawing
+  Raylib.ClearBackground(background_color)
   mouse_position = Raylib.GetMousePosition
   delta_time = Raylib.GetFrameTime
   amount.times { |index| particles[index].render mouse_position, delta_time }
-
   Raylib.EndDrawing
+
+  if recording
+    Raylib.EndTextureMode
+
+    image = Raylib.LoadImageFromTexture(render_texture.texture)
+    Raylib.ImageFlipVertical(image)
+    filename = "frames/frame_#{frame_count.to_s.rjust(4, '0')}.png"
+    Raylib.ExportImage(image, filename)
+    Raylib.UnloadImage(image)
+    frame_count += 1
+
+    Raylib.BeginDrawing
+    Raylib.ClearBackground(Raylib::BLACK)
+    Raylib.DrawTexture(render_texture.texture, 0, 0, Raylib::WHITE)
+    Raylib.DrawText('Recording', 20, 20, 20, Raylib::RED)
+    Raylib.EndDrawing
+  end
 end
 
+Raylib.UnloadRenderTexture(render_texture) if render_texture
 Raylib.CloseWindow
+
+system('ffmpeg -framerate 30 -i frames/frame_%04d.png -c:v libx264 -pix_fmt yuv420p output.mp4')
+Dir.glob('frames/*.png').each { |file| File.delete(file) }
