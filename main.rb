@@ -13,6 +13,7 @@ Raylib.ffi_lib "#{ENV['DYLD_LIBRARY_PATH']}/libraylib.dylib"
 Raylib.setup_raylib_symbols
 
 Dir.mkdir('frames') unless Dir.exist?('frames')
+File.delete('output.mp4') if File.exist?('output.mp4')
 
 class Particle
   def initialize(window_width, window_height, particle_color)
@@ -64,6 +65,8 @@ end
 
 window_width = 800
 window_height = 600
+frame_rate = 60
+video_frame_rate = 30
 
 background_color = Raylib::BLACK
 particle_color = Raylib::WHITE
@@ -87,6 +90,10 @@ if file
       window_width = parts[1].strip.to_i
     when 'window_height'
       window_height = parts[1].strip.to_i
+    when 'frame_rate'
+      frame_rate = parts[1].strip.to_i
+    when 'video_frame_rate'
+      video_frame_rate = parts[1].strip.to_i
     end
   end
 end
@@ -106,6 +113,8 @@ frame_count = 0
 render_texture = nil
 
 until Raylib.WindowShouldClose
+  Raylib.SetTargetFPS frame_rate
+
   if Raylib.IsKeyPressed(Raylib::KEY_SPACE)
     recording = !recording
     if recording && render_texture.nil?
@@ -145,5 +154,5 @@ end
 Raylib.UnloadRenderTexture(render_texture) if render_texture
 Raylib.CloseWindow
 
-system('ffmpeg -framerate 30 -i frames/frame_%04d.png -c:v libx264 -pix_fmt yuv420p output.mp4')
+system("ffmpeg -framerate #{video_frame_rate} -i frames/frame_%04d.png -c:v libx264 -pix_fmt yuv420p output.mp4")
 Dir.glob('frames/*.png').each { |file| File.delete(file) }
