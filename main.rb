@@ -1,5 +1,5 @@
 # Created by Dustin Bucholtz
-# This program is a gravity simulation program to visualize how particles move about a point (being your mouse cursor)
+# This program is a particle simulation program to visualize how particles move about a point (being your mouse cursor)
 
 if RUBY_PLATFORM == "arm64-darwin24"
   ENV['DYLD_LIBRARY_PATH'] = '/opt/homebrew/lib' # Assumes it is installed with homebrew
@@ -59,14 +59,38 @@ class Particle
   end
 end
 
+window_width = 800
+window_height = 600
+
+background_color = Raylib::BLACK
+particle_color = Raylib::WHITE
+
+file = File.read('ps.conf')
+while line = file.gets
+  split = line.split('=', 2)
+
+  case split[0].strip!
+  when 'background'
+    case split[1].strip!
+    when 'white'
+      background_color = Raylib::WHITE
+    when 'black'
+      background_color = Raylib::BLACK
+    when 'green'
+      background_color = Raylib::GREEN
+    when 'red' 
+      background_color = Raylib::RED
+    when 'blue'
+      background_color = Raylib::BLUE
+    end
+  end
+end
+
 def init(amount, window_width, window_height)
   particles = []
   amount.times { particles.append(Particle.new(window_width, window_height)) }
   particles
 end
-
-window_width = 800
-window_height = 600
 
 amount = 20_000
 particles = init(amount, window_width, window_height)
