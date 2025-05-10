@@ -11,7 +11,7 @@ This project is a particle simulation written in Ruby using [Raylib](https://www
 
 ## Demo
 
-![](resources/output.mp4)
+![](resources/demo.gif)
 
 ## Requirements
 
