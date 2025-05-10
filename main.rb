@@ -16,7 +16,7 @@ Dir.mkdir('frames') unless Dir.exist?('frames')
 File.delete('output.mp4') if File.exist?('output.mp4')
 
 class Particle
-  def initialize(window_width, window_height, particle_color)
+  def initialize(window_width, window_height, particle_colors)
     @random = Random.new
     @position = Raylib::Vector2.create(@random.rand(window_width), @random.rand(window_height))
     @velocity = Raylib::Vector2.create(0.0, 0.0)
@@ -24,7 +24,7 @@ class Particle
     @window_height = window_height
     @acceleration_strength = 300.0
     @max_speed = 300.0
-    @particle_color = particle_color
+    @particle_colors = particle_colors
   end
 
   def update(mouse_position, delta_time)
@@ -59,7 +59,7 @@ class Particle
 
   def render(mouse_position, delta_time)
     update mouse_position, delta_time
-    Raylib.DrawPixel(@position.x.to_i, @position.y.to_i, @particle_color)
+    Raylib.DrawPixel(@position.x.to_i, @position.y.to_i, @particle_colors[@random.rand(1..@particle_colors.length) - 1])
   end
 end
 
@@ -68,8 +68,8 @@ window_height = 600
 frame_rate = 60
 video_frame_rate = 30
 
-background_color = Raylib::BLACK
-particle_color = Raylib::WHITE
+background_color = Raylib::WHITE
+particle_colors = []
 
 amount = 20_000
 
@@ -81,9 +81,10 @@ if file
 
     case key
     when 'background_color'
-      background_color = Raylib.const_get(parts[1].strip!.upcase)
-    when 'particle_color'
-      particle_color = Raylib.const_get(parts[1].strip!.upcase)
+      background_color = Raylib.const_get(parts[1].strip.upcase)
+    when 'particle_colors'
+      colors = parts[1].strip.split(',')
+      colors.each { |color| particle_colors.append(Raylib.const_get(color.strip.upcase)) }
     when 'particle_amount'
       amount = parts[1].strip.to_i
     when 'window_width'
@@ -98,13 +99,13 @@ if file
   end
 end
 
-def init(amount, window_width, window_height, particle_color)
+def init(amount, window_width, window_height, particle_colors)
   particles = []
-  amount.times { particles.append(Particle.new(window_width, window_height, particle_color)) }
+  amount.times { particles.append(Particle.new(window_width, window_height, particle_colors)) }
   particles
 end
 
-particles = init(amount, window_width, window_height, particle_color)
+particles = init(amount, window_width, window_height, particle_colors)
 
 Raylib.InitWindow(window_width, window_height, 'Particle Simulation')
 
