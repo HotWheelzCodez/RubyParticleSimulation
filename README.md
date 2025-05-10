@@ -11,9 +11,7 @@ This project is a particle simulation written in Ruby using [Raylib](https://www
 
 ## Demo
 
-<video src="resources/output.mp4" width="640" controls loop autoplay muted>
-  Your browser does not support the video tag.
-</video>
+![](resources/output.mp4)
 
 ## Requirements
 
